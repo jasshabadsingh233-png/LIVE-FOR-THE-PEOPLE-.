@@ -96,9 +96,26 @@ with tabs[1]:
     with c_reb2:
         st.plotly_chart(px.scatter(reb_df, x='Drawdown %', y='Sharpe', text='Asset', size='Req. Gain %', color='Asset', title="Risk-Adjusted Potential"), use_container_width=True)
 
-# TAB 3: MONTE CARLO
+# TAB 3: MONTE CARLO (Fixed Unpacking Error)
 with tabs[2]:
     st.subheader("Probabilistic Future Simulation")
     target_sim = st.selectbox("Select Asset for 252-Day Projection", master_df['Asset'].tolist())
     sim_row = master_df[master_df['Asset'] == target_sim].iloc[0]
-    mu, sigma, S0 = sim_row
+    
+    # Correct Unpacking
+    mu = sim_row['Returns'].mean()
+    sigma = sim_row['Returns'].std()
+    S0 = sim_row['Price']
+    
+    fig_mc = go.Figure()
+    for i in range(25): # Reduced for HP 14 speed
+        prices = [S0]
+        for d in range(252):
+            prices.append(prices[-1] * np.exp((mu - 0.5 * sigma**2) + sigma * np.random.normal()))
+        fig_mc.add_trace(go.Scatter(y=prices, mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
+    fig_mc.update_layout(template="plotly_dark", title=f"25 Potential Price Paths for {target_sim}")
+    st.plotly_chart(fig_mc, use_container_width=True)
+
+# TAB 4: RISK CORRELATION
+with tabs[3]:
+    st.subheader("Genetic Asset Correlation")
