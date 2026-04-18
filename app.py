@@ -93,3 +93,56 @@ with tabs[1]: # Rebound Engine + RECONFIRMATION LOGIC
                     tax_saved = loss_amount * 0.20 # 2026 STCG Rate
                     
                     st.subheader("📊 Wealth Impact Success Meter")
+                    st.metric(label="Tax Shield (Economic Value)", value=f"₹{tax_saved:,.2f}")
+                    st.info(f"By harvesting this loss, you save ₹{tax_saved:,.2f} in upcoming taxes.")
+            with col2:
+                if st.button("❌ Stay in Cash"):
+                    st.info("Order Cancelled. Capital preserved in Liquid Funds.")
+
+    for _, r in df.iterrows():
+        gain_req = ((r['High52'] / r['Price']) - 1) * 100
+        rebs.append({"Asset": r['Asset'], "Recovery Required %": gain_req})
+    st.plotly_chart(px.bar(pd.DataFrame(rebs), x='Asset', y='Recovery Required %', color='Recovery Required %', color_continuous_scale='Reds'), use_container_width=True)
+
+with tabs[2]: # Monte Carlo Projection
+    target = st.selectbox("Select Asset for Simulation", df['Asset'].tolist())
+    r_data = df[df['Asset'] == target].iloc[0]
+    mu, sig, s0 = r_data['Returns'].mean(), r_data['Returns'].std(), r_data['Price']
+    fig = go.Figure()
+    for i in range(15):
+        p_path = [s0]
+        for d in range(252): p_path.append(p_path[-1] * np.exp((mu - 0.5 * sig**2) + sig * np.random.normal()))
+        fig.add_trace(go.Scatter(y=p_path, mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
+    st.plotly_chart(fig, use_container_width=True)
+
+with tabs[3]: # Risk Correlation
+    corr = pd.concat([row['History']['Close'].rename(row['Asset']) for _, row in df.iterrows()], axis=1).corr()
+    st.plotly_chart(px.imshow(corr, text_auto=True, color_continuous_scale='RdBu_r'), use_container_width=True)
+
+with tabs[4]: # Wealth Architect
+    col1, col2 = st.columns(2)
+    with col1:
+        salary = st.number_input("Monthly Income (₹)", value=100000)
+        sip = salary * 0.30
+        st.metric("Recommended SIP (30% Rule)", f"₹{sip:,.0f}")
+    with col2:
+        goal = st.number_input("Target Wealth (₹)", value=50000000)
+        years = 0; v = total_val
+        while v < goal and years < 50:
+            v = (v + (sip * 12)) * 1.15
+            years += 1
+        st.success(f"Goal reachable in {years} years at 15% p.a.")
+
+with tabs[5]: # Tax Harvesting
+    harvest = []
+    for _, p in p_df.iterrows():
+        if p['Price'] < p['High52']:
+            loss = (p['High52'] - p['Price']) * p['Qty']
+            harvest.append({"Asset": p['Asset'], "Loss Amount": loss, "Tax Saving (20%)": loss * 0.20})
+    if harvest:
+        st.table(pd.DataFrame(harvest))
+        st.info("Strategy: Book these losses to offset your gains and reduce tax liability.")
+    else:
+        st.info("No tax-harvesting detected.")
+
+st.caption("v18.5 | Python Deployment | Jamnagar Hub | 2026 Tax Ready")
