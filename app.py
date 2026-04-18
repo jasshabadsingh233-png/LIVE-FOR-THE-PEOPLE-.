@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 
-# --- 1. SYSTEM CONFIG ---
+# --- 1. SETTINGS & STYLING ---
 st.set_page_config(page_title="SOVEREIGN ULTIMATE", layout="wide")
 
 st.markdown("""
@@ -17,13 +17,10 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Persistent Session Data
+# --- 2. DATA ORCHESTRATION ---
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = {"NIFTY 50": 100, "BITCOIN": 0.5, "GOLD": 10, "RELIANCE": 50, "APPLE": 10}
-if 'balance' not in st.session_state:
-    st.session_state.balance = 10000000.0
 
-# --- 2. ASSET UNIVERSE ---
 universe = {
     "INDICES": {"NIFTY 50": "^NSEI", "S&P 500": "^GSPC", "NASDAQ": "^IXIC"},
     "EQUITIES": {"RELIANCE": "RELIANCE.NS", "TCS": "TCS.NS", "APPLE": "AAPL", "TESLA": "TSLA"},
@@ -32,96 +29,90 @@ universe = {
 }
 
 @st.cache_data(ttl=300)
-def get_ultimate_data():
+def fetch_data():
     all_syms = {name: sym for cat in universe.values() for name, sym in cat.items()}
-    master_list = []
+    data = []
     for name, sym in all_syms.items():
         try:
             ticker = yf.Ticker(sym)
             h = ticker.history(period="1y")
             curr = h['Close'].iloc[-1]
-            returns = h['Close'].pct_change().dropna()
-            volatility = returns.std() * np.sqrt(252)
-            sharpe = (returns.mean() * 252) / (volatility) if volatility != 0 else 0
+            rets = h['Close'].pct_change().dropna()
             cat = next(k for k, v in universe.items() if name in v)
-            master_list.append({
-                "Asset": name, "Price": curr, "Symbol": sym, "History": h, 
-                "Category": cat, "Volatility": volatility, "Sharpe": sharpe, "Returns": returns
-            })
+            data.append({"Asset": name, "Price": curr, "History": h, "Category": cat, "Returns": rets})
         except: continue
-    return pd.DataFrame(master_list)
+    return pd.DataFrame(data)
 
-master_df = get_ultimate_data()
+df = fetch_data()
 
-# --- 3. GLOBAL PORTFOLIO CALCULATION (CRITICAL FIX) ---
-# We calculate this OUTSIDE of the tabs so Wealth Architect and Tax Harvest can see it.
-global_port_data = []
-current_total_val = 0
+# --- 3. GLOBAL CALCULATIONS ---
+# Pre-calculating portfolio value for the Wealth Architect tab
+p_rows = []
+total_val = 0
 for asset, qty in st.session_state.portfolio.items():
-    try:
-        row = master_df[master_df['Asset'] == asset].iloc[0]
-        val = row['Price'] * qty
-        current_total_val += val
-        global_port_data.append({"Asset": asset, "Category": row['Category'], "Value": val, "Qty": qty, "Price": row['Price']})
-    except: continue
-g_pdf = pd.DataFrame(global_port_data)
+    row = df[df['Asset'] == asset].iloc[0]
+    val = row['Price'] * qty
+    total_val += val
+    p_rows.append({"Asset": asset, "Qty": qty, "Value": val, "Price": row['Price']})
+p_df = pd.DataFrame(p_rows)
 
-# --- 4. UI COMMAND CENTER ---
-st.title("🏛️ SOVEREIGN ULTIMATE : QUANTITATIVE TERMINAL")
-st.write(f"**Live Portfolio Value:** ₹{current_total_val:,.2f} | **Cash:** ₹{st.session_state.balance:,.2f}")
+# --- 4. DASHBOARD LAYOUT ---
+st.title("🏛️ SOVEREIGN ULTIMATE : PY ENGINE")
+st.write(f"**Institutional Portfolio Value:** ₹{total_val:,.2f}")
 
-# --- 5. THE MASTER TABS ---
-tabs = st.tabs(["📊 PORTFOLIO", "🚀 REBOUND ENGINE", "🔮 MONTE CARLO", "🧬 RISK DYNAMICS", "🏦 WEALTH ARCHITECT", "💼 TAX HARVEST"])
+tabs = st.tabs(["📊 ASSETS", "🚀 REBOUND", "🔮 PROJECTION", "🧬 CORRELATION", "🏦 WEALTH", "💼 TAX"])
 
-with tabs[0]:
-    col_l, col_r = st.columns([2, 1])
-    with col_l:
-        st.subheader("Holdings Distribution")
-        st.dataframe(g_pdf[['Asset', 'Category', 'Qty', 'Value']].style.format({"Value": "₹{:,.2f}"}), use_container_width=True)
-    with col_r:
-        st.subheader("Sector Exposure")
-        fig_sec = px.sunburst(g_pdf, path=['Category', 'Asset'], values='Value', color='Value', color_continuous_scale='Greens')
-        fig_sec.update_layout(template="plotly_dark", margin=dict(t=0,b=0,l=0,r=0))
-        st.plotly_chart(fig_sec, use_container_width=True)
+with tabs[0]: # Portfolio View
+    st.plotly_chart(px.pie(p_df, values='Value', names='Asset', hole=0.4, 
+                           color_discrete_sequence=px.colors.sequential.Greens_r), use_container_width=True)
+    st.dataframe(p_df[['Asset', 'Qty', 'Value']].style.format({"Value": "₹{:,.2f}"}), use_container_width=True)
 
-with tabs[1]:
-    st.subheader("Mean Reversion Intelligence")
-    rebound_list = []
-    for _, row in master_df.iterrows():
-        peak = row['History']['High'].max()
-        dd = ((peak - row['Price']) / peak) * 100
-        req_gain = ((peak / row['Price']) - 1) * 100
-        rebound_list.append({"Asset": row['Asset'], "Drawdown %": dd, "Req. Gain %": req_gain, "Sharpe": row['Sharpe']})
-    reb_df = pd.DataFrame(rebound_list).sort_values("Drawdown %", ascending=False)
-    st.plotly_chart(px.bar(reb_df, x='Asset', y='Req. Gain %', color='Req. Gain %', color_continuous_scale='Reds'), use_container_width=True)
+with tabs[1]: # Rebound Engine
+    rebs = []
+    for _, r in df.iterrows():
+        peak = r['History']['High'].max()
+        gain_req = ((peak / r['Price']) - 1) * 100
+        rebs.append({"Asset": r['Asset'], "Recovery Required %": gain_req})
+    st.plotly_chart(px.bar(pd.DataFrame(rebs), x='Asset', y='Recovery Required %', color='Recovery Required %', color_continuous_scale='Reds'), use_container_width=True)
 
-with tabs[2]:
-    st.subheader("Probabilistic Future Simulation")
-    target_sim = st.selectbox("Select Asset for 252-Day Projection", master_df['Asset'].tolist())
-    s_row = master_df[master_df['Asset'] == target_sim].iloc[0]
-    mu, sigma, S0 = s_row['Returns'].mean(), s_row['Returns'].std(), s_row['Price']
-    fig_mc = go.Figure()
-    for i in range(20):
-        prices = [S0]
-        for d in range(252):
-            prices.append(prices[-1] * np.exp((mu - 0.5 * sigma**2) + sigma * np.random.normal()))
-        fig_mc.add_trace(go.Scatter(y=prices, mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
-    fig_mc.update_layout(template="plotly_dark", title=f"Monte Carlo Paths for {target_sim}")
-    st.plotly_chart(fig_mc, use_container_width=True)
+with tabs[2]: # Monte Carlo Projection
+    target = st.selectbox("Select Asset", df['Asset'].tolist())
+    r_data = df[df['Asset'] == target].iloc[0]
+    mu, sig, s0 = r_data['Returns'].mean(), r_data['Returns'].std(), r_data['Price']
+    fig = go.Figure()
+    for i in range(15):
+        p_path = [s0]
+        for d in range(252): p_path.append(p_path[-1] * np.exp((mu - 0.5 * sig**2) + sig * np.random.normal()))
+        fig.add_trace(go.Scatter(y=p_path, mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
+    st.plotly_chart(fig, use_container_width=True)
 
-with tabs[3]:
-    st.subheader("Genetic Asset Correlation")
-    prices_df = pd.concat([row['History']['Close'].rename(row['Asset']) for _, row in master_df.iterrows()], axis=1).corr()
-    st.plotly_chart(px.imshow(prices_df, text_auto=True, color_continuous_scale='RdBu_r'), use_container_width=True)
+with tabs[3]: # Risk Correlation
+    corr = pd.concat([row['History']['Close'].rename(row['Asset']) for _, row in df.iterrows()], axis=1).corr()
+    st.plotly_chart(px.imshow(corr, text_auto=True, color_continuous_scale='RdBu_r'), use_container_width=True)
 
-with tabs[4]:
-    st.subheader("🏦 Wealth Architect")
-    c1, c2 = st.columns(2)
-    with c1:
-        sal = st.number_input("Monthly Salary (₹)", value=100000, step=5000)
-        risk_lvl = st.select_slider("Risk Strategy", options=["Safe", "Balanced", "Sovereign"])
-        ratio = 0.2 if risk_lvl == "Safe" else 0.3 if risk_lvl == "Balanced" else 0.45
-        monthly_sip = sal * ratio
-        st.metric("Recommended SIP", f"₹{monthly_sip:,.0f}")
-    with c2:
-        goal = st.number_input("Target
+with tabs[4]: # Wealth Architect
+    col1, col2 = st.columns(2)
+    with col1:
+        salary = st.number_input("Monthly Income (₹)", value=100000)
+        sip = salary * 0.30
+        st.metric("Recommended SIP", f"₹{sip:,.0f}")
+    with col2:
+        goal = st.number_input("Target Wealth (₹)", value=50000000)
+        years = 0; v = total_val
+        while v < goal and years < 50:
+            v = (v + (sip * 12)) * 1.15
+            years += 1
+        st.success(f"Goal reachable in {years} years at 15% p.a.")
+
+with tabs[5]: # Tax Harvesting
+    harvest = []
+    for _, p in p_df.iterrows():
+        hist_peak = df[df['Asset'] == p['Asset']].iloc[0]['History']['High'].max()
+        if p['Price'] < hist_peak:
+            harvest.append({"Asset": p['Asset'], "Tax Offset Opportunity": (hist_peak - p['Price']) * p['Qty']})
+    if harvest:
+        st.table(pd.DataFrame(harvest))
+    else:
+        st.info("No tax-harvesting detected.")
+
+st.caption("v18.5 | Python Deployment | Jamnagar Hub")
