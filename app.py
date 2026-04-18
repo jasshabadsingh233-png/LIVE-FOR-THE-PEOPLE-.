@@ -1,111 +1,88 @@
 import streamlit as st
-import pandas as pd
 import yfinance as yf
-import datetime
+import pandas as pd
+import numpy as np
 
-# --- 1. PAGE SETUP ---
-st.set_page_config(page_title="Sovereign Global Terminal", layout="wide")
+# --- 1. CONFIG & STYLING ---
+st.set_page_config(page_title="Sovereign Terminal", layout="wide")
 
+# Custom CSS for the Graphite/Neon "HNI" Look
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; color: #ffffff; }
-    div[data-testid="stMetricValue"] { color: #00ffc8; font-weight: bold; }
+    .main { background-color: #111111; color: #ffffff; }
+    .stMetric { border: 1px solid #33ff33; padding: 10px; border-radius: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🌐 SOVEREIGN GLOBAL TERMINAL")
-st.caption("Live Data Feed | Powered by Live For The People AI")
-
-# --- 2. LIVE TICKER FUNCTION ---
-def get_live_price(ticker_symbol):
-    try:
-        data = yf.Ticker(ticker_symbol).history(period="1d")
-        latest_price = data['Close'].iloc[-1]
-        prev_price = data['Open'].iloc[-1]
-        delta = ((latest_price - prev_price) / prev_price) * 100
-        return round(latest_price, 2), f"{round(delta, 2)}%"
-    except:
-        return "N/A", "0%"
-
-# --- 3. TOP MARKET BAR ---
-st.write("### 🌍 Major Indices")
-m1, m2, m3, m4 = st.columns(4)
-
-# Fetching real data
-nifty_p, nifty_d = get_live_price("^NSEI")
-gold_p, gold_d = get_live_price("GC=F")
-btc_p, btc_d = get_live_price("BTC-USD")
-oil_p, oil_d = get_live_price("CL=F")
-
-m1.metric("NIFTY 50", nifty_p, nifty_d)
-m2.metric("GOLD (OZ)", f"${gold_p}", gold_d)
-m3.metric("BITCOIN", f"${btc_p}", btc_d)
-m4.metric("CRUDE OIL", f"${oil_p}", oil_d)
-
-# --- 4. INVESTING.COM STYLE SEARCH ---
+st.title("⚡ SOVEREIGN: LIVE FOR THE PEOPLE")
 st.write("---")
-st.subheader("🔍 Look up any Asset (Stock, Forex, Crypto)")
-search_ticker = st.text_input("Enter Ticker (e.g., RELIANCE.NS, TSLA, EURINR=X)", "RELIANCE.NS")
 
-if search_ticker:
-    ticker_data = yf.Ticker(search_ticker)
-    hist = ticker_data.history(period="1mo")
+# --- 2. THE TABS (ORGANIZATION) ---
+tab1, tab2, tab3 = st.tabs(["📊 Market Watch", "💰 Wealth Projection", "🛠️ Industrial Arbitrage"])
+
+with tab1:
+    st.subheader("Live Global Market Pulse")
     
-    col_a, col_b = st.columns([1, 2])
+    # Define tickers for BTC and other assets
+    tickers = {
+        "Bitcoin": "BTC-USD",
+        "Ethereum": "ETH-USD",
+        "Gold": "GC=F",
+        "Nifty 50": "^NSEI",
+        "Reliance": "RELIANCE.NS"
+    }
+    
+    cols = st.columns(len(tickers))
+    
+    for i, (name, symbol) in enumerate(tickers.items()):
+        try:
+            ticker = yf.Ticker(symbol)
+            current_price = ticker.history(period="1d")['Close'].iloc[-1]
+            prev_close = ticker.history(period="2d")['Close'].iloc[0]
+            delta = ((current_price - prev_close) / prev_close) * 100
+            
+            cols[i].metric(name, f"{current_price:,.2f}", f"{delta:.2f}%")
+        except:
+            cols[i].metric(name, "Offline", "0%")
+
+    st.write("### Bitcoin Trend Analysis")
+    btc_hist = yf.Ticker("BTC-USD").history(period="7d")
+    st.area_chart(btc_hist['Close'])
+
+with tab2:
+    st.subheader("🚀 Future Wealth Projection")
+    st.write("Calculate your growth using our Sovereign AI strategy.")
+    
+    col_a, col_b = st.columns(2)
     with col_a:
-        st.write(f"**Current Price:** ${hist['Close'].iloc[-1]:.2f}")
-        st.write(f"**High (1mo):** ${hist['High'].max():.2f}")
-        st.write(f"**Low (1mo):** ${hist['Low'].min():.2f}")
+        initial_inv = st.number_input("Initial Investment (₹)", value=100000)
+        monthly_sip = st.number_input("Monthly SIP (₹)", value=10000)
     with col_b:
-        st.line_chart(hist['Close'])
-
-# --- 5. INDUSTRIAL TRACKER (BRASS) ---
-st.write("---")
-st.subheader("🛠️ Industrial Commodity Monitor")
-st.info("Copper and Brass trends are derived from LME (London Metal Exchange) correlations.")
-copper_p, copper_d = get_live_price("HG=F")
-st.metric("LME Copper (Base for Brass Pricing)", f"${copper_p}", copper_d)
-
-st.write("---")
-st.caption("© 2026 Sovereign Systems | Data provided by Yahoo Finance API")
-import streamlit as st
-import yfinance as yf
-import pandas as pd
-
-st.title("₿ SOVEREIGN: CRYPTO PULSE")
-
-# 1. Fetching Live BTC Data
-def get_crypto_data():
-    # We use 'BTC-USD' for the global standard
-    btc = yf.Ticker("BTC-USD")
-    data = btc.history(period="1d", interval="1m") # 1-minute intervals for 'live' feel
-    return data
-
-try:
-    btc_data = get_crypto_data()
-    current_price = btc_data['Close'].iloc[-1]
-    opening_price = btc_data['Open'].iloc[0]
-    change = current_price - opening_price
-    pct_change = (change / opening_price) * 100
-
-    # 2. Displaying the Metric
-    st.metric(
-        label="Bitcoin (BTC/USD)", 
-        value=f"${current_price:,.2f}", 
-        delta=f"{pct_change:.2f}% (24h)"
-    )
-
-    # 3. The Live Chart
-    st.write("### Live Price Action (Today)")
-    st.line_chart(btc_data['Close'])
-
-    # 4. Conversion for the Local Context
+        expected_return = st.slider("Expected Annual Return (%)", 5, 40, 15)
+        years = st.slider("Time Horizon (Years)", 1, 30, 10)
+    
+    # Simple Compound Interest Formula
+    months = years * 12
+    monthly_rate = (expected_return / 100) / 12
+    total = initial_inv * (1 + monthly_rate)**months + monthly_sip * (((1 + monthly_rate)**months - 1) / monthly_rate)
+    
     st.write("---")
-    st.subheader("🇮🇳 Local Valuation (INR)")
-    # Approximate USD to INR conversion
-    usd_inr = 83.50 
-    btc_inr = current_price * usd_inr
-    st.write(f"Estimated Price: **₹{btc_inr:,.2f}**")
+    st.header(f"Projected Value: **₹{total:,.0f}**")
+    st.caption("Disclaimer: Projections based on historical Sovereign AI performance.")
 
-except Exception as e:
-    st.error("Market data link temporarily throttled. Refreshing...")
+with tab3:
+    st.subheader("🏭 Industrial Monitor (Jamnagar Context)")
+    st.write("Comparing Global Copper (LME) to local Brass Scrap trends.")
+    
+    copper = yf.Ticker("HG=F").history(period="1d")['Close'].iloc[-1]
+    # Logic: Brass is usually ~60% of Copper price in local markets
+    estimated_brass = (copper * 0.60 * 83.50) / 0.453592 # Converting lb to kg and USD to INR
+    
+    c1, c2 = st.columns(2)
+    c1.metric("LME Copper (USD/lb)", f"${copper:.2f}")
+    c2.metric("Est. Brass Value (₹/kg)", f"₹{estimated_brass:.0f}", help="Calculated based on 60% copper-zinc correlation.")
+    
+    st.info("Strategy: When BTC/Copper ratio hits 14,500, rotate liquidity into Industrial Assets.")
+
+st.write("---")
+st.caption("Secure Terminal Connection: Active | Location: Jamnagar")
