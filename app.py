@@ -15,6 +15,7 @@ st.markdown("""
     div[data-testid="stMetricValue"] { color: #00ffc8; font-family: 'Courier New'; font-size: 1.4rem !important; }
     .stTabs [data-baseweb="tab"] { color: #00ffc8; font-weight: bold; }
     .stAlert { background-color: #161b22; border: 1px solid #00ffc8; color: white; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #00ffc8; color: black; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -58,54 +59,23 @@ for asset, qty in st.session_state.portfolio.items():
         p_rows.append({"Asset": asset, "Qty": qty, "Value": val, "Price": row['Price'], "High52": row['High52']})
 p_df = pd.DataFrame(p_rows)
 
-# --- 4. DASHBOARD LAYOUT ---
+# --- 4. DASHBOARD HEADER ---
 st.title("🏛️ SOVEREIGN ULTIMATE : PY ENGINE")
 st.write(f"**Institutional Portfolio Value:** ₹{total_val:,.2f} | Jamnagar Terminal")
 
 tabs = st.tabs(["📊 ASSETS", "🚀 REBOUND & DEMO", "🔮 PROJECTION", "🧬 CORRELATION", "🏦 WEALTH", "💼 TAX"])
 
-with tabs[0]: # Portfolio View
-   # --- ADD THIS TO YOUR IMPORTS AT THE TOP ---
-# (No new imports needed, just using Streamlit's built-in forms)
-
-with tabs[1]: # The AI Rebound & Stress Test Demo
-    # ... (Keep your existing Rebound/Stress Test code here) ...
-    
-    # --- NEW: STARTUP GROWTH SECTION (Place this at the bottom of Tab 1) ---
-    st.markdown("---")
-    st.header("📈 Scale the Vision")
-    
-    with st.container():
-        st.subheader("Join the 'Live For The People' Alpha")
-        st.write("We are building the future of Sovereign Wealth in India. Get notified when we move from Terminal to Mobile.")
-        
-        with st.form("waitlist_form"):
-            email = st.text_input("Institutional/Personal Email")
-            investor_type = st.select_slider("Investor Type", options=["Retail", "HNI", "Family Office"])
-            submitted = st.form_submit_button("Secure Early Access")
-            
-            if submitted:
-                if "@" in email:
-                    st.success(f"Vision Registered. Welcome to the Sovereign circle, {email}.")
-                    # In a real startup, this would save to a database. 
-                    # For June 19, it shows you have a business roadmap.
-                else:
-                    st.error("Please enter a valid email to join the waitlist.")
-
-# --- ADD THIS TO YOUR FOOTER ---
-st.markdown("---")
-footer_col1, footer_col2 = st.columns(2)
-with footer_col1:
-    st.caption("© 2026 LIVE FOR THE PEOPLE | All Rights Reserved")
-with footer_col2:
-    st.caption("Built in Jamnagar | Powered by Sovereign Logic") st.plotly_chart(px.pie(p_df, values='Value', names='Asset', hole=0.4, 
+# --- TAB 0: ASSETS ---
+with tabs[0]: 
+    st.plotly_chart(px.pie(p_df, values='Value', names='Asset', hole=0.4, 
                            color_discrete_sequence=px.colors.sequential.Greens_r), use_container_width=True)
     st.dataframe(p_df[['Asset', 'Qty', 'Value']].style.format({"Value": "₹{:,.2f}"}), use_container_width=True)
 
-with tabs[1]: # --- THE AI REBOUND & STRESS TEST DEMO ---
+# --- TAB 1: REBOUND ENGINE & STARTUP GROWTH ---
+with tabs[1]:
     st.subheader("🚀 AI Rebound & Stress Test")
     
-    # THE MAGIC DEMO SWITCH (CLEANED)
+    # THE MAGIC DEMO SWITCH
     demo_trigger = st.checkbox("ACTIVATE STRESS TEST: Simulate 25% Market Crash")
 
     demo_asset = "TESLA"
@@ -120,7 +90,7 @@ with tabs[1]: # --- THE AI REBOUND & STRESS TEST DEMO ---
             st.error(f"⚠️ {demo_asset} EMERGENCY: Critical Value Gap Detected")
             st.write(f"**Asset:** {demo_asset} | **Current Drop:** {drop_val:.1f}% below 52H High")
             
-            with st.expander("Quantitative Proof (Why Reinvest?)"):
+            with st.expander("Quantitative Proof (AI Reasoning)"):
                 st.write("- **RSI:** 22.4 (Oversold)")
                 st.write("- **Mean Reversion:** Asset is 2 Standard Deviations from 50-Day MA.")
                 st.write("- **Alpha Opportunity:** 72% Probability of +12% Recovery.")
@@ -134,20 +104,16 @@ with tabs[1]: # --- THE AI REBOUND & STRESS TEST DEMO ---
                     
                     st.success(f"Strategy Active: Sold {demo_asset} at ₹{display_price:,.2f}")
                     
-                    # --- NEW REINVESTMENT DISTRIBUTION LOGIC ---
-                    st.markdown("### 📥 Automatic Capital Redistribution")
+                    st.markdown("### 📥 Algorithmic Capital Deployment")
                     re_col1, re_col2 = st.columns(2)
-                    
-                    # 40/60 Split Logic
                     rebound_fund = capital_to_redeploy * 0.40
                     safety_fund = capital_to_redeploy * 0.60
                     
                     with re_col1:
-                        st.info(f"**Reinvested in {demo_asset} (40%)**\n\nAmount: ₹{rebound_fund:,.2f}\n\n*Purpose: Capture recovery upside.*")
+                        st.info(f"**Reinvested in {demo_asset} (40%)**\n\nAmount: ₹{rebound_fund:,.2f}\n\n*Capture Rebound Upside*")
                     with re_col2:
-                        st.info(f"**Hedged in NIFTY 50 (60%)**\n\nAmount: ₹{safety_fund:,.2f}\n\n*Purpose: Portfolio stability.*")
+                        st.info(f"**Hedged in NIFTY 50 (60%)**\n\nAmount: ₹{safety_fund:,.2f}\n\n*Portfolio Stability*")
                     
-                    # SUCCESS METER
                     st.markdown("---")
                     st.subheader("📊 Success Meter: Economic Value Added")
                     k1, k2 = st.columns(2)
@@ -157,7 +123,23 @@ with tabs[1]: # --- THE AI REBOUND & STRESS TEST DEMO ---
             with col2:
                 if st.button("❌ Ignore & Hold"):
                     st.warning("Action Deferred. Tax-loss opportunity may expire.")
-    
+
+    # STARTUP GROWTH SECTION
+    st.markdown("---")
+    st.header("📈 Scale the Vision")
+    with st.container():
+        st.subheader("Join the 'Live For The People' Alpha")
+        st.write("We are building the future of Sovereign Wealth in India. Get notified when we move from Terminal to Mobile.")
+        with st.form("waitlist_form"):
+            email = st.text_input("Institutional/Personal Email")
+            investor_type = st.select_slider("Investor Type", options=["Retail", "HNI", "Family Office"])
+            submitted = st.form_submit_button("Secure Early Access")
+            if submitted:
+                if "@" in email:
+                    st.success(f"Vision Registered. Welcome to the Sovereign circle, {email}.")
+                else:
+                    st.error("Please enter a valid email.")
+
     st.markdown("---")
     st.write("**Market-Wide Recovery Scanner**")
     rebs = []
@@ -166,7 +148,8 @@ with tabs[1]: # --- THE AI REBOUND & STRESS TEST DEMO ---
         rebs.append({"Asset": r['Asset'], "Recovery Required %": gain_req})
     st.plotly_chart(px.bar(pd.DataFrame(rebs), x='Asset', y='Recovery Required %', color='Recovery Required %', color_continuous_scale='Reds'), use_container_width=True)
 
-with tabs[2]: # Monte Carlo Projection
+# --- TAB 2: PROJECTION ---
+with tabs[2]:
     target = st.selectbox("Select Asset for Projection", df['Asset'].tolist())
     r_data = df[df['Asset'] == target].iloc[0]
     mu, sig, s0 = r_data['Returns'].mean(), r_data['Returns'].std(), r_data['Price']
@@ -177,11 +160,13 @@ with tabs[2]: # Monte Carlo Projection
         fig.add_trace(go.Scatter(y=p_path, mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
     st.plotly_chart(fig, use_container_width=True)
 
-with tabs[3]: # Risk Correlation
+# --- TAB 3: CORRELATION ---
+with tabs[3]:
     corr = pd.concat([row['History']['Close'].rename(row['Asset']) for _, row in df.iterrows()], axis=1).corr()
     st.plotly_chart(px.imshow(corr, text_auto=True, color_continuous_scale='RdBu_r'), use_container_width=True)
 
-with tabs[4]: # Wealth Architect
+# --- TAB 4: WEALTH ARCHITECT ---
+with tabs[4]:
     col1, col2 = st.columns(2)
     with col1:
         salary = st.number_input("Monthly Income (₹)", value=100000)
@@ -195,7 +180,8 @@ with tabs[4]: # Wealth Architect
             years += 1
         st.success(f"Goal reachable in {years} years at 15% p.a.")
 
-with tabs[5]: # Tax Harvesting
+# --- TAB 5: TAX HARVESTING ---
+with tabs[5]:
     harvest = []
     for _, p in p_df.iterrows():
         if p['Price'] < p['High52']:
@@ -206,4 +192,10 @@ with tabs[5]: # Tax Harvesting
     else:
         st.info("No tax-harvesting detected in current live prices.")
 
-st.caption("v18.5 | Solo Founder Build | Jamnagar Terminal | 2026 Tax Act Compliant")
+# --- FOOTER ---
+st.markdown("---")
+footer_col1, footer_col2 = st.columns(2)
+with footer_col1:
+    st.caption("© 2026 LIVE FOR THE PEOPLE | All Rights Reserved")
+with footer_col2:
+    st.caption("Built in Jamnagar | Powered by Sovereign Logic")
