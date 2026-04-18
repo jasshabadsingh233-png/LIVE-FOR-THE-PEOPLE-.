@@ -8,7 +8,10 @@ from datetime import datetime
 
 # --- 1. ZENITH ENGINE CONFIG ---
 st.set_page_config(page_title="SOVEREIGN ZENITH | Global Alpha", layout="wide")
+from streamlit_autorefresh import st_autorefresh
 
+# Refresh every 30,000 milliseconds (30 seconds)
+count = st_autorefresh(interval=30000, limit=100, key="fizzbuzzcounter")
 st.markdown("""
     <style>
     .main { background-color: #030303; color: #ffffff; }
