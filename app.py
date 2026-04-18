@@ -65,7 +65,40 @@ st.write(f"**Institutional Portfolio Value:** ₹{total_val:,.2f} | Jamnagar Ter
 tabs = st.tabs(["📊 ASSETS", "🚀 REBOUND & DEMO", "🔮 PROJECTION", "🧬 CORRELATION", "🏦 WEALTH", "💼 TAX"])
 
 with tabs[0]: # Portfolio View
-    st.plotly_chart(px.pie(p_df, values='Value', names='Asset', hole=0.4, 
+   # --- ADD THIS TO YOUR IMPORTS AT THE TOP ---
+# (No new imports needed, just using Streamlit's built-in forms)
+
+with tabs[1]: # The AI Rebound & Stress Test Demo
+    # ... (Keep your existing Rebound/Stress Test code here) ...
+    
+    # --- NEW: STARTUP GROWTH SECTION (Place this at the bottom of Tab 1) ---
+    st.markdown("---")
+    st.header("📈 Scale the Vision")
+    
+    with st.container():
+        st.subheader("Join the 'Live For The People' Alpha")
+        st.write("We are building the future of Sovereign Wealth in India. Get notified when we move from Terminal to Mobile.")
+        
+        with st.form("waitlist_form"):
+            email = st.text_input("Institutional/Personal Email")
+            investor_type = st.select_slider("Investor Type", options=["Retail", "HNI", "Family Office"])
+            submitted = st.form_submit_button("Secure Early Access")
+            
+            if submitted:
+                if "@" in email:
+                    st.success(f"Vision Registered. Welcome to the Sovereign circle, {email}.")
+                    # In a real startup, this would save to a database. 
+                    # For June 19, it shows you have a business roadmap.
+                else:
+                    st.error("Please enter a valid email to join the waitlist.")
+
+# --- ADD THIS TO YOUR FOOTER ---
+st.markdown("---")
+footer_col1, footer_col2 = st.columns(2)
+with footer_col1:
+    st.caption("© 2026 LIVE FOR THE PEOPLE | All Rights Reserved")
+with footer_col2:
+    st.caption("Built in Jamnagar | Powered by Sovereign Logic") st.plotly_chart(px.pie(p_df, values='Value', names='Asset', hole=0.4, 
                            color_discrete_sequence=px.colors.sequential.Greens_r), use_container_width=True)
     st.dataframe(p_df[['Asset', 'Qty', 'Value']].style.format({"Value": "₹{:,.2f}"}), use_container_width=True)
 
