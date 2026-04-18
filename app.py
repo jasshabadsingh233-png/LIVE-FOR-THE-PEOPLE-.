@@ -111,17 +111,76 @@ with t2:
     st.plotly_chart(fig_line, use_container_width=True)
 
 with t3:
-    st.subheader("AI Rebound Optimizer")
-    # AI Logic: Weight by Drawdown
-    scan_list = []
+    with t3:
+    st.subheader("🚀 Sovereign Rebound Intelligence")
+    st.write("Quantitative analysis of assets trading at a significant discount to their 52-week highs.")
+
+    rebound_stats = []
     for index, row in df.iterrows():
+        # 1. Price Distance Math
         peak = row['History']['High'].max()
-        dd = ((peak - row['Price']) / peak) * 100
-        scan_list.append({"Asset": row['Asset'], "Drawdown": dd})
+        current = row['Price']
+        drawdown = ((peak - current) / peak) * 100
+        
+        # 2. Required Gain to Break Even (Math: (Peak/Current - 1) * 100)
+        req_gain = ((peak / current) - 1) * 100
+        
+        # 3. Relative Strength Index (Simplified RSI Proxy)
+        # Higher drawdown usually means lower RSI (oversold)
+        rsi_proxy = 100 - (drawdown * 2.5) # Heuristic for visualization
+        rsi_proxy = max(min(rsi_proxy, 100), 10) 
+        
+        rebound_stats.append({
+            "Asset": row['Asset'],
+            "Current Price": current,
+            "Peak (1Y)": peak,
+            "Drawdown %": drawdown,
+            "Required Gain %": req_gain,
+            "AI Momentum Score": rsi_proxy
+        })
+
+    reb_df = pd.DataFrame(rebound_stats).sort_values('Drawdown %', ascending=False)
+
+    # Visualizing the Opportunity Gap
+    c_reb1, c_reb2 = st.columns([2, 1])
     
-    s_df = pd.DataFrame(scan_list).sort_values('Drawdown', ascending=False)
-    st.write("AI suggests rotating capital into these 'deep-red' assets for the highest rebound potential:")
-    st.table(s_df.head(5))
+    with c_reb1:
+        st.write("**The Opportunity Gap: Required Gain to reach New Highs**")
+        fig_gap = px.bar(reb_df, x='Asset', y='Required Gain %', 
+                         color='Required Gain %', color_continuous_scale='Reds',
+                         text_auto='.1f')
+        fig_gap.update_layout(template="plotly_dark", height=350, showlegend=False)
+        st.plotly_chart(fig_gap, use_container_width=True)
+
+    with c_reb2:
+        st.write("**Mean Reversion Potential**")
+        # Radar Chart showing how 'Oversold' the top assets are
+        top_5 = reb_df.head(5)
+        fig_radar = go.Figure(data=go.Scatterpolar(
+            r=top_5['AI Momentum Score'],
+            theta=top_5['Asset'],
+            fill='toself',
+            marker=dict(color='#00ffc8')
+        ))
+        fig_radar.update_layout(
+            polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+            showlegend=False, template="plotly_dark", height=350, margin=dict(t=40,b=20,l=40,r=40)
+        )
+        st.plotly_chart(fig_radar, use_container_width=True)
+
+    st.write("---")
+    st.markdown("### 🧬 Rebound Engine Logic")
+    
+    # Detailed Data Table
+    st.dataframe(reb_df.style.format({
+        "Current Price": "₹{:,.2f}",
+        "Peak (1Y)": "₹{:,.2f}",
+        "Drawdown %": "{:.2f}%",
+        "Required Gain %": "{:.2f}%",
+        "AI Momentum Score": "{:.0f}/100"
+    }), use_container_width=True)
+    
+    st.warning("**Sovereign Alpha Insight:** Assets with a 'Required Gain' > 25% are mathematically positioned for a 'Snap-Back' rally if the fundamental correlation remains intact.")
 
 with t4:
     st.subheader("🧬 Diversification Dynamics")
