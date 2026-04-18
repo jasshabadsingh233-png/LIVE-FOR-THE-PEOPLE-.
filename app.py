@@ -54,24 +54,40 @@ if mode == "Market Terminal":
     st.plotly_chart(fig, use_container_width=True)
 
 # --- 5. MODULE: AI REBOUND ENGINE ---
+# --- 5. MODULE: LIVE AI REBOUND & DISTRIBUTION ---
 elif mode == "AI Rebound Engine":
-    st.header("🧠 Rebound Simulation AI")
-    st.write("Our proprietary AI detects 'Oversold' assets for a snap-back recovery.")
+    st.header("🧠 Sovereign Liquidity Distributor")
+    st.write("AI is monitoring market crashes to redistribute capital into high-rebound assets.")
     
-    asset = st.selectbox("Scan Asset for Rebound", ["BTC-USD", "RELIANCE.NS", "TSLA"])
-    drop_pct = st.slider("Simulated Market Crash (%)", 5, 50, 20)
+    # 1. SCANNING MULTIPLE ASSETS
+    scan_list = ["BTC-USD", "RELIANCE.NS", "GC=F", "^NSEI"]
+    results = []
+
+    for asset in scan_list:
+        data = yf.Ticker(asset).history(period="14d")
+        # Simplified RSI/Rebound Logic
+        current = data['Close'].iloc[-1]
+        high = data['High'].max()
+        drawdown = ((high - current) / high) * 100
+        results.append({"Asset": asset, "Price": current, "Drawdown %": drawdown})
+
+    df_scan = pd.DataFrame(results)
+
+    # 2. THE DISTRIBUTION ENGINE
+    st.subheader("🛡️ AI Allocation Strategy")
     
-    st.write("### AI Recovery Path Projection")
-    base_price = yf.Ticker(asset).history(period="1d")['Close'].iloc[-1]
-    crashed_price = base_price * (1 - drop_pct/100)
+    # Logic: More drawdown = Higher Allocation (Buying the dip)
+    total_drawdown = df_scan["Drawdown %"].sum()
+    df_scan["AI Allocation %"] = (df_scan["Drawdown %"] / total_drawdown) * 100
+    df_scan["Suggested Investment (from ₹10L)"] = (df_scan["AI Allocation %"] / 100) * 1000000
+
+    st.table(df_scan.style.format({"Price": "{:.2f}", "Drawdown %": "{:.2f}%", "AI Allocation %": "{:.2f}%", "Suggested Investment (from ₹10L)": "₹{:,.0f}"}))
+
+    # 3. VISUAL DISTRIBUTION
+    st.write("### Portfolio Distribution Map")
+    st.bar_chart(df_scan.set_index("Asset")["AI Allocation %"])
     
-    # Simulation Logic
-    days = np.array(range(30))
-    recovery = crashed_price * (1 + (drop_pct/100 * (1 - np.exp(-0.15 * days))))
-    
-    rec_df = pd.DataFrame({"Day": days, "Price": recovery})
-    st.line_chart(rec_df.set_index("Day"))
-    st.success(f"AI Prediction: Full Rebound in {np.argmax(recovery >= base_price * 0.98)} days.")
+    st.success("AI Analysis: Capital is being rotated from 'Stable' to 'Oversold' assets for maximum rebound profit.")
 
 # --- 6. MODULE: WEALTH MATRIX (SIP/SWP) ---
 elif mode == "Wealth Matrix (SIP/SWP)":
