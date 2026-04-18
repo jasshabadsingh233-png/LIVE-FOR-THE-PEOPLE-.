@@ -110,7 +110,10 @@ with tabs[3]: # Risk Correlation
     st.plotly_chart(px.imshow(corr, text_auto=True, color_continuous_scale='RdBu_r'), use_container_width=True)
 
 with tabs[4]: # Wealth Architect
-    col1, col2 = st.columns(2)
+    # Ensure these variables are defined before the UI calls them
+loss_amount = (high_price - current_price) * shares_owned
+tax_rate = 0.20  # 2026 STCG Rate
+tax_saved = loss_amount * tax_ratecol1, col2 = st.columns(2)
     with col1:
         salary = st.number_input("Monthly Income (₹)", value=100000)
         sip = salary * 0.30
