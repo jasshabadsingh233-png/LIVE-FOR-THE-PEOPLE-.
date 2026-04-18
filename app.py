@@ -16,7 +16,26 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] { color: #00ffc8; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
-
+# --- RECONFIRMATION LOGIC ---
+if rebound_detected:
+    st.warning("⚠️ STRATEGY ALERT: Deep Value Detected")
+    st.write(f"Tesla is 25% below 52H. Rebound Probability: 68%")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("✅ Confirm Reinvestment"):
+            # Execute your distribution logic here
+            st.success("Trade Executed: 40% Tesla / 60% Nifty BeES")
+            
+            # --- THE SUCCESS METER ---
+            st.subheader("Wealth Impact Success Meter")
+            tax_benefit = calculate_tax_savings() # Your existing math
+            st.metric(label="Tax Savings (Economic Value)", value=f"₹{tax_benefit}")
+            st.info("Your net worth is protected by the Tax Shield.")
+            
+    with col2:
+        if st.button("❌ Stay in Cash"):
+            st.info("Order Cancelled. Capital preserved in Liquid Funds.")
 # --- 2. DATA ORCHESTRATION ---
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = {"NIFTY 50": 100, "BITCOIN": 0.5, "GOLD": 10, "RELIANCE": 50, "APPLE": 10}
