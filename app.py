@@ -68,3 +68,44 @@ st.metric("LME Copper (Base for Brass Pricing)", f"${copper_p}", copper_d)
 
 st.write("---")
 st.caption("© 2026 Sovereign Systems | Data provided by Yahoo Finance API")
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+
+st.title("₿ SOVEREIGN: CRYPTO PULSE")
+
+# 1. Fetching Live BTC Data
+def get_crypto_data():
+    # We use 'BTC-USD' for the global standard
+    btc = yf.Ticker("BTC-USD")
+    data = btc.history(period="1d", interval="1m") # 1-minute intervals for 'live' feel
+    return data
+
+try:
+    btc_data = get_crypto_data()
+    current_price = btc_data['Close'].iloc[-1]
+    opening_price = btc_data['Open'].iloc[0]
+    change = current_price - opening_price
+    pct_change = (change / opening_price) * 100
+
+    # 2. Displaying the Metric
+    st.metric(
+        label="Bitcoin (BTC/USD)", 
+        value=f"${current_price:,.2f}", 
+        delta=f"{pct_change:.2f}% (24h)"
+    )
+
+    # 3. The Live Chart
+    st.write("### Live Price Action (Today)")
+    st.line_chart(btc_data['Close'])
+
+    # 4. Conversion for the Local Context
+    st.write("---")
+    st.subheader("🇮🇳 Local Valuation (INR)")
+    # Approximate USD to INR conversion
+    usd_inr = 83.50 
+    btc_inr = current_price * usd_inr
+    st.write(f"Estimated Price: **₹{btc_inr:,.2f}**")
+
+except Exception as e:
+    st.error("Market data link temporarily throttled. Refreshing...")
