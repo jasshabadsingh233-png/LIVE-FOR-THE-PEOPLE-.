@@ -6,132 +6,114 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 
-# --- 1. ZENITH ENGINE CONFIG ---
-st.set_page_config(page_title="SOVEREIGN ZENITH | Global Alpha", layout="wide")
-from streamlit_autorefresh import st_autorefresh
+# --- 1. THE SINGULARITY CONFIG ---
+st.set_page_config(page_title="SOVEREIGN SINGULARITY", layout="wide")
 
-# Refresh every 30,000 milliseconds (30 seconds)
-count = st_autorefresh(interval=30000, limit=100, key="fizzbuzzcounter")
 st.markdown("""
     <style>
-    .main { background-color: #030303; color: #ffffff; }
-    div[data-testid="stMetricValue"] { color: #00ffc8; font-size: 1.2rem !important; font-weight: bold; }
-    .stTabs [data-baseweb="tab"] { color: #00ffc8; font-weight: bold; }
-    .stDataFrame { border: 1px solid #00ffc8; }
+    .main { background-color: #020202; color: #ffffff; }
+    div[data-testid="stMetricValue"] { color: #00ffc8; font-family: 'Courier New'; font-weight: bold; }
+    .stTabs [data-baseweb="tab"] { color: #00ffc8; font-size: 1.1rem; }
+    .glass-card { background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 20px; border: 1px solid rgba(0, 255, 200, 0.2); }
     </style>
     """, unsafe_allow_html=True)
 
 if 'balance' not in st.session_state:
-    st.session_state.balance = 10000000.0  # ₹1 Crore Institutional Capital
+    st.session_state.balance = 10000000.0 
 
-# --- 2. THE ULTIMATE ASSET UNIVERSE (40+ ASSETS) ---
+# --- 2. GLOBAL ASSET UNIVERSE ---
 universe = {
-    "🇮🇳 INDIAN INDICES": {
-        "NIFTY 50": "^NSEI", "SENSEX": "^BSESN", "BANK NIFTY": "^NSEBANK", 
-        "NIFTY IT": "^CNXIT", "NIFTY PHARMA": "^CNXPHARMA", "NIFTY MIDCAP": "^NSEMDCP50"
-    },
-    "🇺🇸 US & GLOBAL": {
-        "S&P 500": "^GSPC", "NASDAQ 100": "^IXIC", "DOW JONES": "^DJI",
-        "FTSE 100 (UK)": "^FTSE", "DAX (GER)": "^GDAXI", "NIKKEI 225 (JPN)": "^N225"
-    },
-    "🏢 BIG TECH & GROWTH": {
-        "RELIANCE": "RELIANCE.NS", "TCS": "TCS.NS", "HDFC BANK": "HDFCBANK.NS",
-        "INFOSYS": "INFY.NS", "APPLE": "AAPL", "TESLA": "TSLA", "NVIDIA": "NVDA", 
-        "GOOGLE": "GOOGL", "MICROSOFT": "MSFT", "AMAZON": "AMZN"
-    },
-    "🧱 COMMODITIES": {
-        "GOLD": "GC=F", "SILVER": "SI=F", "CRUDE OIL": "CL=F", 
-        "NATURAL GAS": "NG=F", "COPPER": "HG=F", "ALUMINUM": "ALI=F"
-    },
-    "📉 DEBT & LIQUID": {
-        "LIQUID ETF": "LIQUIDBEES.NS", "US 10Y BOND": "^TNX", 
-        "GOLD ETF": "GOLDBEES.NS", "US 2Y BOND": "^IRX"
-    },
-    "₿ CRYPTO": {
-        "BITCOIN": "BTC-USD", "ETHEREUM": "ETH-USD", "SOLANA": "SOL-USD", "CARDANO": "ADA-USD"
-    },
-    "💱 FOREX": {
-        "USD/INR": "INR=X", "EUR/USD": "EURUSD=X", "GBP/INR": "GBPINR=X", "JPY/INR": "JPYINR=X"
-    }
+    "🇮🇳 INDICES": {"NIFTY 50": "^NSEI", "BANK NIFTY": "^NSEBANK", "NIFTY IT": "^CNXIT"},
+    "🌍 GLOBAL": {"S&P 500": "^GSPC", "NASDAQ": "^IXIC", "GOLD": "GC=F"},
+    "🛡️ DEBT/LIQUID": {"LIQUID ETF": "LIQUIDBEES.NS", "US 10Y BOND": "^TNX"},
+    "₿ CRYPTO": {"BITCOIN": "BTC-USD", "ETHEREUM": "ETH-USD"},
+    "⚙️ INDUSTRIAL": {"BRASS PROXY (COPPER)": "HG=F", "STEEL PROXY": "STEE-F"}
 }
 
-# --- 3. DATA FETCHING (ZENITH OPTIMIZED) ---
-@st.cache_data(ttl=300) # Cache for 5 mins to save processing power
-def get_zenith_data():
-    scan_data = []
+# --- 3. DATA ENGINE (MULTI-FUNCTIONAL) ---
+@st.cache_data(ttl=600)
+def fetch_master_data():
+    data_list = []
     all_syms = {name: sym for cat in universe.values() for name, sym in cat.items()}
     for name, sym in all_syms.items():
         try:
-            ticker = yf.Ticker(sym)
-            hist = ticker.history(period="30d")
-            if not hist.empty:
-                curr = hist['Close'].iloc[-1]
-                peak = hist['High'].max()
-                dd = ((peak - curr) / peak) * 100
-                # Find Category
-                cat_name = "Other"
-                for c, items in universe.items():
-                    if name in items: cat_name = c
-                scan_data.append({"Category": cat_name, "Asset": name, "Price": curr, "Drawdown": dd, "Symbol": sym})
+            h = yf.Ticker(sym).history(period="60d")
+            curr = h['Close'].iloc[-1]
+            peak = h['High'].max()
+            dd = ((peak - curr) / peak) * 100
+            # Identify Category
+            cat = next(k for k, v in universe.items() if name in v)
+            data_list.append({"Category": cat, "Asset": name, "Price": curr, "Drawdown": dd, "Symbol": sym, "History": h['Close']})
         except: continue
-    return pd.DataFrame(scan_data)
+    return pd.DataFrame(data_list)
 
-master_df = get_zenith_data()
+df = fetch_master_data()
 
-# --- 4. HEADER ---
-st.title("🌌 SOVEREIGN ZENITH : MAXIMUM CAPACITY")
-st.write(f"**Total Assets Monitored:** {len(master_df)} | **Vault Balance:** ₹{st.session_state.balance:,.2f}")
+# --- 4. HEADER & REAL-TIME PULSE ---
+st.title("🏛️ SOVEREIGN SINGULARITY : THE ULTIMATE")
+st.write(f"**Institutional Intelligence Hub** | Global Status: **OPTIMIZED** | Liquidity: ₹{st.session_state.balance:,.2f}")
 
-# --- 5. ZENITH TABS ---
-t1, t2, t3 = st.tabs(["🛸 ALPHA RADAR", "⚖️ REBOUND ALLOCATOR", "🕹️ TERMINAL EXECUTION"])
+# --- 5. THE MASTER TABS (NO SCOPE LEFT) ---
+t1, t2, t3, t4, t5 = st.tabs(["🛰️ ALPHA RADAR", "⚖️ REBOUND MATRIX", "📈 ADAPTIVE SIP", "🧬 RISK CORRELATION", "🕹️ EXECUTION"])
 
 with t1:
-    st.subheader("Global Market Alpha Map")
-    # Tree Map of EVERYTHING
-    fig_tree = px.treemap(master_df, path=['Category', 'Asset'], values='Drawdown',
-                          color='Drawdown', color_continuous_scale='RdYlGn_r',
-                          hover_data=['Price'])
-    fig_tree.update_layout(template="plotly_dark", margin=dict(t=10, b=10, l=10, r=10))
+    st.subheader("Global Market Drawdown Heatmap")
+    fig_tree = px.treemap(df, path=['Category', 'Asset'], values='Drawdown', color='Drawdown',
+                          color_continuous_scale='RdYlGn_r', hover_data=['Price'])
+    fig_tree.update_layout(template="plotly_dark", margin=dict(t=0, b=0, l=0, r=0))
     st.plotly_chart(fig_tree, use_container_width=True)
 
 with t2:
-    st.subheader("Sovereign AI Rotation Matrix")
-    # Calculate Allocation
-    master_df['AI Weight %'] = (master_df['Drawdown'] / master_df['Drawdown'].sum()) * 100
-    master_df['Suggested (₹)'] = (master_df['AI Weight %'] / 100) * st.session_state.balance
+    st.subheader("AI Rebound Allocation")
+    df['Weight %'] = (df['Drawdown'] / df['Drawdown'].sum()) * 100
+    df['Rec. Allocation'] = (df['Weight %'] / 100) * st.session_state.balance
     
-    col_l, col_r = st.columns([2, 1])
-    with col_l:
-        st.dataframe(master_df.drop(columns=['Symbol']).sort_values('Drawdown', ascending=False), use_container_width=True)
-    with col_r:
-        fig_sun = px.sunburst(master_df, path=['Category', 'Asset'], values='AI Weight %', 
-                              color='AI Weight %', color_continuous_scale='Greens')
-        fig_sun.update_layout(template="plotly_dark", margin=dict(t=0, b=0, l=0, r=0))
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.dataframe(df[['Category', 'Asset', 'Price', 'Drawdown', 'Rec. Allocation']].sort_values('Drawdown', ascending=False), use_container_width=True)
+    with col2:
+        fig_sun = px.sunburst(df, path=['Category', 'Asset'], values='Weight %', color='Weight %', color_continuous_scale='Greens')
         st.plotly_chart(fig_sun, use_container_width=True)
 
 with t3:
-    st.subheader("Multi-Asset Execution Desk")
+    st.subheader("Adaptive SIP Engine (Sovereign Logic)")
+    st.info("The AI calculates your monthly investment based on market fear. More crash = More investment.")
+    base_sip = st.number_input("Base Monthly SIP (₹)", value=50000)
+    
+    sip_results = []
+    for index, row in df.iterrows():
+        # Sovereign Logic: If DD > 5%, increase SIP by 2x DD
+        multiplier = 1 + (row['Drawdown'] / 10)
+        adj_sip = base_sip * multiplier
+        sip_results.append({"Asset": row['Asset'], "Base SIP": base_sip, "AI Adj. SIP": adj_sip, "Logic": f"{multiplier:.2f}x Multiplier"})
+    
+    st.table(pd.DataFrame(sip_results))
+
+with t4:
+    st.subheader("🧬 Asset Correlation Matrix")
+    st.write("Checking if your assets are moving together (High Risk) or apart (Safe).")
+    
+    # Simple Correlation logic
+    corr_data = pd.concat([row['History'].rename(row['Asset']) for i, row in df.iterrows()], axis=1).corr()
+    fig_corr = px.imshow(corr_data, text_auto=True, aspect="auto", color_continuous_scale='Viridis', title="Diversification Health Check")
+    st.plotly_chart(fig_corr, use_container_width=True)
+
+with t5:
+    st.subheader("Institutional Execution Desk")
     cl, cr = st.columns([1, 2])
     with cl:
-        target_name = st.selectbox("Select Asset to Buy/Sell", master_df['Asset'].tolist())
-        target_info = master_df[master_df['Asset'] == target_name].iloc[0]
-        st.metric(f"Spot: {target_name}", f"{target_info['Price']:,.2f}")
-        
-        amt = st.number_input("Transaction Units", min_value=0.001, value=1.0)
-        if st.button("EXECUTE ORDER"):
-            cost = amt * target_info['Price']
-            if st.session_state.balance >= cost:
-                st.session_state.balance -= cost
-                st.balloons()
-                st.success(f"FILLED: {amt} units of {target_name}")
-            else: st.error("INSUFFICIENT FUNDS")
-            
+        target = st.selectbox("Select Asset", df['Asset'].tolist())
+        t_info = df[df['Asset'] == target].iloc[0]
+        st.metric(f"Live {target}", f"₹{t_info['Price']:,.2f}")
+        units = st.number_input("Units", min_value=0.01, value=1.0)
+        if st.button("CONFIRM INSTITUTIONAL ORDER"):
+            st.balloons()
+            st.success(f"TRADE EXECUTED: {units} units of {target}")
     with cr:
-        h_data = yf.Ticker(target_info['Symbol']).history(period="3mo")
-        fig_cand = go.Figure(data=[go.Candlestick(x=h_data.index, open=h_data['Open'], 
-                             high=h_data['High'], low=h_data['Low'], close=h_data['Close'])])
-        fig_cand.update_layout(template="plotly_dark", height=400, margin=dict(t=0, b=0, l=0, r=0))
-        st.plotly_chart(fig_cand, use_container_width=True)
+        h_data = yf.Ticker(t_info['Symbol']).history(period="3mo")
+        fig_c = go.Figure(data=[go.Candlestick(x=h_data.index, open=h_data['Open'], high=h_data['High'], low=h_data['Low'], close=h_data['Close'])])
+        fig_c.update_layout(template="plotly_dark", height=400, margin=dict(t=0, b=0, l=0, r=0))
+        st.plotly_chart(fig_c, use_container_width=True)
 
 st.write("---")
-st.caption(f"SOVEREIGN ZENITH v15.0 | Last Data Refresh: {datetime.now().strftime('%H:%M:%S')} | Jamnagar AI Hub")
+st.caption(f"SOVEREIGN SINGULARITY v16.0 | Jamnagar AI Hub | Last Pulse: {datetime.now().strftime('%H:%M:%S')}")
