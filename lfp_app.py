@@ -1,67 +1,42 @@
 import streamlit as st
 import pandas as pd
-import random
-from datetime import datetime
 
-# --- 1. SETTINGS & MEMORY ---
-st.set_page_config(page_title="LFP Engine", layout="wide")
+# --- 1. MINIMALIST CONFIG ---
+st.set_page_config(page_title="LFP Engine", layout="centered")
 
-if 'price' not in st.session_state:
-    st.session_state.price = 2950.0
-if 'history' not in st.session_state:
-    st.session_state.history = [{"Time": datetime.now().strftime("%H:%M:%S"), "Price": 2950.0, "Floor": 2860.0}]
+# --- 2. STATIC ENGINE LOGIC ---
+def get_floor(price, sentiment):
+    # Option B: Logic for the Investor Grill
+    mult = 1.0 if sentiment < -0.5 else 2.0
+    return round(price - (45.0 * mult), 2)
 
-# --- 2. SIDEBAR CONTROLS ---
-with st.sidebar:
-    st.title("🛡️ LFP Admin")
-    market_cycle = st.selectbox("Market Cycle", ["STABLE", "MANIA", "PANIC"])
-    news_score = st.slider("AI News Score", -1.0, 1.0, 0.0)
-    
-    st.write("---")
-    # THE REFRESH BUTTON (This is how you update the dashboard)
-    if st.button("UPDATE LIVE FEED", type="primary"):
-        # Calculate new data
-        st.session_state.price += random.uniform(-15, 15)
-        new_price = st.session_state.price
-        
-        # Option B Logic
-        mult = 1.0 if news_score < -0.5 else 2.0
-        new_floor = round(new_price - (45.0 * mult), 2)
-        
-        # Save to history
-        st.session_state.history.append({
-            "Time": datetime.now().strftime("%H:%M:%S"),
-            "Price": round(new_price, 2),
-            "Floor": new_floor
-        })
-        
-        if len(st.session_state.history) > 20:
-            st.session_state.history.pop(0)
+# --- 3. UI LAYOUT ---
+st.title("🛡️ Live For The People")
+st.write("Solo Founder Prototype | Status: **Ready**")
 
-# --- 3. MAIN DASHBOARD ---
-st.title("Live For The People: Safety Dashboard")
-st.write(f"**Portfolio:** ₹50,00,000 | **Target:** RELIANCE")
+# Metrics Row
+col1, col2 = st.columns(2)
+price_input = col1.number_input("Current Asset Price (₹)", value=2950.0)
+news_input = col2.slider("AI News Sentiment", -1.0, 1.0, 0.0)
 
-# Metrics
-curr = st.session_state.history[-1]
-m1, m2, m3 = st.columns(3)
-m1.metric("Live Price", f"₹{curr['Price']}")
-m2.metric("Safety Floor", f"₹{curr['Floor']}", delta=f"{round(curr['Price']-curr['Floor'], 2)} Buffer")
+# The Calculation
+floor_output = get_floor(price_input, news_input)
 
-if news_score < -0.5:
-    m3.error("100% PROTECTED")
+# --- 4. THE VISUAL SHIELD ---
+st.divider()
+m1, m2 = st.columns(2)
+m1.metric("Live Price", f"₹{price_input}")
+m2.metric("Safety Floor", f"₹{floor_output}", delta=f"{round(price_input - floor_output, 2)} Buffer")
+
+if news_input < -0.5:
+    st.error("PROTECTION ACTIVE: 100% LIQUID")
 else:
-    m3.success("GROWTH MODE")
+    st.success("GROWTH ACTIVE: TRAILING STOP ENABLED")
 
-# Chart
-df = pd.DataFrame(st.session_state.history)
-st.line_chart(df.set_index("Time"))
-
-# --- 4. THE SYNAPSE (Narrative) ---
-st.markdown("### **AI Synapse Feed**")
-if market_cycle == "MANIA":
-    st.warning("Howard Marks Logic: Market is in MANIA. Risk Shield tightening.")
-elif news_score < -0.5:
-    st.error("Crisis detected. Server-side hard stop moved to immediate exit.")
-else:
-    st.info("System stable. Trailing Floor active at 2.0x ATR.")
+# --- 5. THE PROOF (Chart) ---
+st.markdown("### **Safety Tracking**")
+data = pd.DataFrame({
+    'Metric': ['Floor', 'Price'],
+    'Value': [floor_output, price_input]
+})
+st.bar_chart(data.set_index('Metric'))
