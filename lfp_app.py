@@ -3,85 +3,65 @@ import pandas as pd
 import random
 from datetime import datetime
 
-# --- 1. CORE ENGINE LOGIC ---
-def get_safety_floor(price, news_val):
-    # Option B: Safety Floor logic
-    # If news is bad (-1 to -0.5), multiplier is tight (1.0)
-    # If news is stable/good, multiplier is standard (2.0)
-    multiplier = 1.0 if news_val < -0.5 else 2.0
-    return round(price - (45.0 * multiplier), 2)
+# --- 1. SETTINGS & MEMORY ---
+st.set_page_config(page_title="LFP Engine", layout="wide")
 
-# --- 2. INITIALIZE MEMORY (Session State) ---
-if 'history' not in st.session_state:
-    st.session_state.history = []
 if 'price' not in st.session_state:
     st.session_state.price = 2950.0
+if 'history' not in st.session_state:
+    st.session_state.history = [{"Time": datetime.now().strftime("%H:%M:%S"), "Price": 2950.0, "Floor": 2860.0}]
 
-# --- 3. UI LAYOUT ---
-st.set_page_config(page_title="LFP Safety Engine", layout="wide")
-
-st.title("🛡️ Live For The People: Safety Engine")
-st.write(f"**Target:** RELIANCE (NSE) | **Portfolio:** ₹50,00,000")
-
-# Sidebar Controls
+# --- 2. SIDEBAR CONTROLS ---
 with st.sidebar:
-    st.header("Admin Control Panel")
+    st.title("🛡️ LFP Admin")
     market_cycle = st.selectbox("Market Cycle", ["STABLE", "MANIA", "PANIC"])
-    news_score = st.slider("AI News Sentiment", -1.0, 1.0, 0.0)
+    news_score = st.slider("AI News Score", -1.0, 1.0, 0.0)
     
-    # THE REFRESH BUTTON: Use this if the auto-ticking stops
-    if st.button("Manual Update / Refresh"):
-        st.session_state.price += random.uniform(-10, 10)
-        st.rerun()
+    st.write("---")
+    # THE REFRESH BUTTON (This is how you update the dashboard)
+    if st.button("UPDATE LIVE FEED", type="primary"):
+        # Calculate new data
+        st.session_state.price += random.uniform(-15, 15)
+        new_price = st.session_state.price
+        
+        # Option B Logic
+        mult = 1.0 if news_score < -0.5 else 2.0
+        new_floor = round(new_price - (45.0 * mult), 2)
+        
+        # Save to history
+        st.session_state.history.append({
+            "Time": datetime.now().strftime("%H:%M:%S"),
+            "Price": round(new_price, 2),
+            "Floor": new_floor
+        })
+        
+        if len(st.session_state.history) > 20:
+            st.session_state.history.pop(0)
 
-# --- 4. CALCULATION ---
-# Simulate price movement
-st.session_state.price += random.uniform(-2, 2)
-curr_price = st.session_state.price
-curr_floor = get_safety_floor(curr_price, news_score)
+# --- 3. MAIN DASHBOARD ---
+st.title("Live For The People: Safety Dashboard")
+st.write(f"**Portfolio:** ₹50,00,000 | **Target:** RELIANCE")
 
-# Store for chart
-st.session_state.history.append({
-    "Time": datetime.now().strftime("%H:%M:%S"),
-    "Price": curr_price,
-    "Floor": curr_floor
-})
-if len(st.session_state.history) > 30:
-    st.session_state.history.pop(0)
+# Metrics
+curr = st.session_state.history[-1]
+m1, m2, m3 = st.columns(3)
+m1.metric("Live Price", f"₹{curr['Price']}")
+m2.metric("Safety Floor", f"₹{curr['Floor']}", delta=f"{round(curr['Price']-curr['Floor'], 2)} Buffer")
 
-# --- 5. DASHBOARD RENDERING ---
-col1, col2 = st.columns([3, 1])
+if news_score < -0.5:
+    m3.error("100% PROTECTED")
+else:
+    m3.success("GROWTH MODE")
 
-with col1:
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Live Price", f"₹{curr_price:.2f}")
-    m2.metric("Safety Floor", f"₹{curr_floor:.2f}")
-    
-    # Protection Status Meter
-    if news_score < -0.5:
-        m3.success("PROTECTION: 100% LIQUID")
-    else:
-        m3.info("GROWTH: TRAILING FLOOR ACTIVE")
+# Chart
+df = pd.DataFrame(st.session_state.history)
+st.line_chart(df.set_index("Time"))
 
-    # The Visual Chart
-    chart_data = pd.DataFrame(st.session_state.history).set_index("Time")
-    st.line_chart(chart_data)
-
-with col2:
-    st.markdown("### **The Synapse (AI Feed)**")
-    if news_score < -0.5:
-        st.error("🚨 CRISIS DETECTED")
-        st.write("AI triggered 'Panic Mode'. Multiplier set to 1.0. Hard stop moved to exchange server.")
-    elif market_cycle == "MANIA":
-        st.warning("⚠️ MANIA DETECTED")
-        st.write("Howard Marks Theory: Reducing risk exposure.")
-    else:
-        st.write("✅ System operating in Stable Growth mode.")
-
-# --- 6. AUTO-TICKING (Optional) ---
-# If this causes a blank screen on GitHub, just delete these two lines
-st.write("---")
-if st.checkbox("Enable Live Ticking", value=True):
-    import time
-    time.sleep(2)
-    st.rerun()
+# --- 4. THE SYNAPSE (Narrative) ---
+st.markdown("### **AI Synapse Feed**")
+if market_cycle == "MANIA":
+    st.warning("Howard Marks Logic: Market is in MANIA. Risk Shield tightening.")
+elif news_score < -0.5:
+    st.error("Crisis detected. Server-side hard stop moved to immediate exit.")
+else:
+    st.info("System stable. Trailing Floor active at 2.0x ATR.")
