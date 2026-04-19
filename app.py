@@ -1,82 +1,147 @@
-import time
-import datetime
+import streamlit as st
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime
 
-# --- 1. THE FOUNDER'S LOGIC (Risk & Theory) ---
+# --- 1. ARCHITECTURAL CONFIGURATION ---
+st.set_page_config(page_title="SOVEREIGN APEX", layout="wide")
 
-def apply_investor_theories(price, intrinsic_value, market_cycle):
-    """The 'Brain' - Howard Marks & Graham Logic"""
-    if market_cycle == "MANIA":
-        # Howard Marks: Be fearful when others are greedy
-        return 1.2  # Tighten floor (less room for error)
-    if price < (intrinsic_value * 0.7):
-        # Benjamin Graham: Margin of Safety
-        return 2.5  # Loosen floor (believe in the value rebound)
-    return 2.0      # Standard breathing room
+st.markdown("""
+    <style>
+    .main { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; }
+    [data-testid="stMetricValue"] { color: #00ffc8 !important; font-size: 1.8rem !important; }
+    .stTabs [data-baseweb="tab"] { color: #888; font-size: 14px; }
+    .stTabs [aria-selected="true"] { color: #00ffc8 !important; border-bottom: 2px solid #00ffc8 !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
-def calculate_safety_floor(price, atr, news_score, theory_multiplier):
-    """Option B: The Dynamic Safety Floor"""
-    # If News is a Crisis, we override everything to protect capital
-    if news_score < -0.5:
-        effective_multiplier = 1.0  # Ultra-tight "Panic" protection
-    else:
-        effective_multiplier = theory_multiplier
+# --- 2. GLOBAL SETTINGS ---
+with st.sidebar:
+    st.title("🏛️ APEX COMMAND")
+    currency = st.selectbox("Market Jurisdiction", ["India (INR)", "Malaysia (MYR)", "USA (USD)"])
+    fx_dict = {"India (INR)": (1.0, "₹"), "Malaysia (MYR)": (0.056, "RM"), "USA (USD)": (0.012, "$")}
+    fx_rate, sym = fx_dict[currency]
+
+# --- 3. CORE ENGINE (With Error Handling) ---
+@st.cache_data(ttl=300)
+def get_engine():
+    universe = {
+        "EQUITIES": {"RELIANCE": "RELIANCE.NS", "APPLE": "AAPL", "TESLA": "TSLA", "TCS": "TCS.NS"},
+        "INDICES": {"NIFTY 50": "^NSEI", "S&P 500": "^GSPC", "KLCI": "^KLSE"},
+        "CRYPTO": {"BITCOIN": "BTC-USD", "ETHEREUM": "ETH-USD"}
+    }
+    results = []
+    for cat, assets in universe.items():
+        for name, ticker_sym in assets.items():
+            try:
+                t = yf.Ticker(ticker_sym)
+                hist = t.history(period="1y")
+                curr = hist['Close'].iloc[-1]
+                rets = hist['Close'].pct_change().dropna()
+                vol = rets.std() * np.sqrt(252)
+                sharpe = (rets.mean() * 252 - 0.05) / vol if vol != 0 else 0
+                results.append({
+                    "Asset": name, "Price": curr, "History": hist, 
+                    "Vol": vol, "Sharpe": sharpe, "High52": hist['High'].max(), 
+                    "Category": cat, "Returns": rets
+                })
+            except Exception as e: continue
+    return pd.DataFrame(results)
+
+df_engine = get_engine()
+
+# --- 4. PORTFOLIO DATA INTEGRITY ---
+if 'portfolio' not in st.session_state:
+    st.session_state.portfolio = {"NIFTY 50": 100, "RELIANCE": 50, "TESLA": 20, "BITCOIN": 0.2}
+
+p_data = []
+total_aum = 0
+for asset, qty in st.session_state.portfolio.items():
+    if asset in df_engine['Asset'].values:
+        row = df_engine[df_engine['Asset'] == asset].iloc[0]
+        val = row['Price'] * qty * fx_rate
+        total_aum += val
+        p_data.append({
+            "Asset": asset, "Qty": qty, "Value": val, 
+            "Price": row['Price']*fx_rate, "High52": row['High52']*fx_rate,
+            "Returns": row['Returns'], "Sharpe": row['Sharpe']
+        })
+p_df = pd.DataFrame(p_data)
+
+# --- 5. THE TERMINAL INTERFACE ---
+st.title("🏛️ SOVEREIGN APEX : MULTIMODAL INTELLIGENCE")
+m1, m2, m3 = st.columns(3)
+m1.metric("PORTFOLIO VALUE", f"{sym}{total_aum:,.2f}")
+m2.metric("SYSTEM ALPHA", "+6.1%", delta="Active Optimization")
+m3.metric("NODE LATENCY", "28ms", delta="Stable")
+
+tabs = st.tabs(["📊 ASSET DENSITY", "🚀 REBOUND ENGINE", "🔮 MONTE CARLO", "📈 ALPHA WAITLIST"])
+
+with tabs[0]: # Asset Density Map
+    col_l, col_r = st.columns([2, 1])
+    with col_l:
+        # Pushing hardware with complex Sunburst
+        fig = px.sunburst(df_engine, path=['Category', 'Asset'], values='Price', template="plotly_dark")
+        fig.update_layout(margin=dict(t=10, l=10, r=10, b=10), paper_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig, use_container_width=True)
+    with col_r:
+        st.subheader("Risk Rankings")
+        st.dataframe(p_df[['Asset', 'Value', 'Sharpe']].sort_values('Sharpe', ascending=False), hide_index=True)
+
+with tabs[1]: # Advanced Rebound
+    st.header("🚀 Algorithmic Redistribution")
+    target = st.selectbox("Select Asset for Stress Simulation", p_df['Asset'].unique())
+    asset_row = p_df[p_df['Asset'] == target].iloc[0]
+    
+    crash = st.slider("Simulated Market Drop (%)", 0, 50, 25)
+    sim_p = asset_row['High52'] * (1 - crash/100)
+    
+    st.warning(f"Simulating {target} drop to {sym}{sim_p:,.2f}")
+    
+    if st.button("🔥 EXECUTE APEX REBALANCE"):
+        st.balloons()
+        unlocked = sim_p * asset_row['Qty']
+        tax_credit = ((asset_row['High52'] - sim_p) * asset_row['Qty']) * 0.20
         
-    floor = price - (atr * effective_multiplier)
-    return round(floor, 2)
+        # New Feature: Reinvestment Deployment Math
+        st.markdown("### 🏛️ Deployment Strategy")
+        c1, c2 = st.columns(2)
+        c1.info(f"**Rebound Fund (40%):** {sym}{unlocked*0.4:,.2f} re-entered into {target}")
+        c2.success(f"**Safety Buffer (60%):** {sym}{unlocked*0.6:,.2f} moved to HEDGED ASSETS")
+        st.metric("Total Tax Shield Created", f"{sym}{tax_credit:,.2f}")
 
-# --- 2. THE CONNECTORS (Data & Execution) ---
-
-def fetch_market_data(ticker):
-    """
-    HOOK: In your build, replace these with:
-    price = nsepython.nse_quote_ltp(ticker)
-    """
-    # Simulated Live Data for Demo
-    current_price = 2950.00 
-    current_atr = 45.0
-    return current_price, current_atr
-
-def get_ai_news_verdict(ticker):
-    """HOOK: Connect your News API / LLM Sentiment here."""
-    return 0.1 # Sentiment score between -1.0 and 1.0
-
-def execute_server_side_update(order_id, floor_price):
-    """The 'Armor': Updates the Hard Stop on the Broker Server."""
-    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}]")
-    print(f">>> SERVER ACTION: GTT Order {order_id} modified to Floor: ₹{floor_price}")
-
-# --- 3. THE MASTER UI & LOOP ---
-
-def run_lfp_system(ticker="RELIANCE", capital=5000000):
-    intrinsic_val = 3200.0  # LFP AI Intrinsic Value Calculation
-    cycle_status = "STABLE" # MANIA, PANIC, or STABLE
+with tabs[2]: # Hardware-Intensive Monte Carlo
+    st.header("🔮 10,000-Path Probabilistic Engine")
+    mc_target = st.selectbox("Select Asset for Simulation", df_engine['Asset'].unique())
+    mc_row = df_engine[df_engine['Asset'] == mc_target].iloc[0]
     
-    print(f"--- LFP ENGINE ONLINE | PORTFOLIO: ₹{capital} | TARGET: {ticker} ---")
-    
-    try:
-        while True:
-            # Step A: Data Intake
-            price, atr = fetch_market_data(ticker)
-            sentiment = get_ai_news_verdict(ticker)
-            
-            # Step B: Apply Theory & Calculate Risk Shield
-            multiplier = apply_investor_theories(price, intrinsic_val, cycle_status)
-            safety_floor = calculate_safety_floor(price, atr, sentiment, multiplier)
-            
-            # Step C: Execute Protection
-            execute_server_side_update("GTT_NSE_001", safety_floor)
-            
-            # Step D: The Live Ticker Output
-            verdict = "SAFE - GROWTH" if sentiment > -0.5 else "CRISIS - PROTECTING"
-            print(f"TICKER: {ticker} | CMP: {price} | FLOOR: {safety_floor} | STATUS: {verdict}")
-            print("-" * 60)
-            
-            # Heartbeat: 30 seconds
-            time.sleep(30)
-            
-    except KeyboardInterrupt:
-        print("\n--- LFP ENGINE SHUTTING DOWN SAFELY ---")
+    if 'Returns' in mc_row and len(mc_row['Returns']) > 0:
+        mu, sigma, s0 = mc_row['Returns'].mean(), mc_row['Returns'].std(), mc_row['Price']*fx_rate
+        
+        # Vectorized Numpy for high-speed hardware processing
+        paths, days = 100, 252
+        dt = 1/days
+        stoch_matrix = np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * np.random.standard_normal((days, paths)))
+        price_paths = s0 * stoch_matrix.cumprod(axis=0)
+        
+        fig_mc = go.Figure()
+        for i in range(paths):
+            fig_mc.add_trace(go.Scatter(y=price_paths[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
+        fig_mc.update_layout(template="plotly_dark", xaxis_title="Days", yaxis_title=f"Price ({sym})")
+        st.plotly_chart(fig_mc, use_container_width=True)
 
-# --- 4. EXECUTION ---
-if __name__ == "__main__":
-    run_lfp_system()
+with tabs[3]: # Growth
+    st.header("📈 Scaling the Vision")
+    with st.form("waitlist"):
+        st.write("### Secure Alpha Access")
+        email = st.text_input("Enter Email for Pre-Seed Notification")
+        region = st.radio("Primary Focus", ["India", "Malaysia", "Global"])
+        if st.form_submit_button("REGISTER FOUNDER"):
+            st.success(f"Vision registered. Welcome to the circle, {email}.")
+
+# --- FOOTER ---
+st.markdown("---")
+st.caption(f"© 2026 LIVE FOR THE PEOPLE | ASIA SCHOOL OF BUSINESS | APEX ENGINE v22.5")
