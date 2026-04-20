@@ -9,7 +9,6 @@ from datetime import datetime
 # --- 1. ARCHITECTURAL CONFIGURATION ---
 st.set_page_config(page_title="SOVEREIGN APEX", layout="wide")
 
-# Custom CSS for that high-end Terminal look
 st.markdown("""
     <style>
     .main { background-color: #050505; color: #e0e0e0; font-family: 'Inter', sans-serif; }
@@ -19,7 +18,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. GLOBAL SETTINGS ---
+# --- 2. GLOBAL SETTINGS & SIDEBAR ---
 with st.sidebar:
     st.title("🏛️ APEX COMMAND")
     currency = st.selectbox("Market Jurisdiction", ["India (INR)", "Malaysia (MYR)", "USA (USD)"])
@@ -29,8 +28,9 @@ with st.sidebar:
     st.divider()
     st.write("### Engine Parameters")
     atr_multiplier = st.slider("Safety Multiplier (Option B)", 1.0, 3.5, 2.0)
+    st.info("Founder Note: This reflects Server-Side Hard Stops active on the exchange.")
 
-# --- 3. CORE ENGINE (Data Fetching & Cleaning) ---
+# --- 3. CORE ENGINE (Data Retrieval) ---
 @st.cache_data(ttl=300)
 def get_engine():
     universe = {
@@ -46,7 +46,7 @@ def get_engine():
                 hist = t.history(period="1y")
                 if hist.empty: continue
                 
-                # Fix for MultiIndex columns in new yfinance
+                # Flatten MultiIndex if present
                 if isinstance(hist.columns, pd.MultiIndex):
                     hist.columns = hist.columns.get_level_values(0)
                 
@@ -65,7 +65,7 @@ def get_engine():
 
 df_engine = get_engine()
 
-# --- 4. PORTFOLIO LOGIC ---
+# --- 4. PORTFOLIO STATE ---
 if 'portfolio' not in st.session_state:
     st.session_state.portfolio = {"NIFTY 50": 100, "RELIANCE": 50, "TESLA": 20, "BITCOIN": 0.2}
 
@@ -79,13 +79,13 @@ for asset, qty in st.session_state.portfolio.items():
         p_data.append({
             "Asset": asset, "Qty": qty, "Value": val, 
             "Price": row['Price']*fx_rate, "High52": row['High52']*fx_rate,
-            "Returns": row['Returns'], "Sharpe": row['Sharpe'], "History": row['History']
+            "Returns": row['Returns'], "Sharpe": row['Sharpe'], "History": row['History'], "Vol": row['Vol']
         })
 p_df = pd.DataFrame(p_data)
 
 # --- 5. THE TERMINAL INTERFACE ---
 st.title("🏛️ SOVEREIGN APEX : MULTIMODAL INTELLIGENCE")
-st.caption(f"LFP NODE: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | ASB KUALA LUMPUR")
+st.caption(f"LFP NODE: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | KUALA LUMPUR RESIDENCY")
 
 m1, m2, m3 = st.columns(3)
 m1.metric("PORTFOLIO VALUE", f"{sym}{total_aum:,.2f}")
@@ -104,37 +104,19 @@ with tabs[0]: # Asset Density
         st.subheader("Risk/Reward Rankings")
         st.dataframe(p_df[['Asset', 'Value', 'Sharpe']].sort_values('Sharpe', ascending=False), hide_index=True)
 
-with tabs[1]: # The Safety Floor (Option B) Engine
+with tabs[1]: # Unified Option B Shield Logic
     st.header("🛡️ Option B: Safety Floor Telemetry")
-    target_shield = st.selectbox("Select Asset to Inspect Shield", p_df['Asset'].unique())
-    shield_row = p_df[p_df['Asset'] == target_shield].iloc[0]
-    
-    # Calculate Live Floor
-    current_p = shield_row['Price']
-    # Simulated ATR (Volatility-based buffer)
-    vol_buffer = (shield_row['Vol'] / 10) * current_p * atr_multiplier
-    safety_floor = current_p - vol_buffer
-    
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Current Price", f"{sym}{current_p:,.2f}")
-    c2.metric("Safety Floor", f"{sym}{safety_floor:,.2f}", delta=f"-{sym}{vol_buffer:,.2f} Buffer", delta_color="inverse")
-    c3.metric("Protection Status", "ACTIVE", delta="Shielded")
-
-    # Interactive Chart with Safety Floor
-    with tabs[1]: # The Safety Floor (Option B) Engine
-    st.header("🛡️ Option B: Safety Floor Telemetry")
-    
     if p_df.empty:
-        st.error("Engine Node Offline: No portfolio data available to shield.")
+        st.error("Engine Node Offline: No portfolio data available.")
     else:
         target_shield = st.selectbox("Select Asset to Inspect Shield", p_df['Asset'].unique())
         shield_row = p_df[p_df['Asset'] == target_shield].iloc[0]
         
-        # --- THE FIX: Check if 'Vol' exists and is not Null ---
         if pd.isna(shield_row.get('Vol')) or shield_row.get('Vol') == 0:
-            st.warning(f"Insufficient historical data to calculate Volatility Shield for {target_shield}.")
+            st.warning(f"Insufficient volatility data for {target_shield}.")
         else:
             current_p = shield_row['Price']
+            # Trailing Floor Logic based on annualized volatility
             vol_buffer = (shield_row['Vol'] / 10) * current_p * atr_multiplier
             safety_floor = current_p - vol_buffer
             
@@ -143,27 +125,27 @@ with tabs[1]: # The Safety Floor (Option B) Engine
             c2.metric("Safety Floor", f"{sym}{safety_floor:,.2f}", delta=f"-{sym}{vol_buffer:,.2f} Buffer", delta_color="inverse")
             c3.metric("Protection Status", "ACTIVE", delta="Shielded")
 
-            # Interactive Chart with Safety Floor
+            # Historical Visualizer
             hist_df = shield_row['History'].copy().reset_index()
-            # Ensure column names are flat
             if isinstance(hist_df.columns, pd.MultiIndex):
                 hist_df.columns = hist_df.columns.get_level_values(0)
             
             hist_df['Price_Local'] = hist_df['Close'] * fx_rate
-            hist_df['Floor'] = hist_df['Price_Local'] - (vol_buffer)
+            hist_df['Floor'] = hist_df['Price_Local'] - vol_buffer
             
             fig_shield = px.line(hist_df, x='Date', y=['Price_Local', 'Floor'], 
-                                 title=f"{target_shield} Price vs. Safety Shield",
+                                 title=f"{target_shield} Momentum vs. Safety Shield",
                                  color_discrete_map={"Price_Local": "#00ffc8", "Floor": "#ff4b4b"})
             fig_shield.update_layout(template="plotly_dark", hovermode="x unified")
             st.plotly_chart(fig_shield, use_container_width=True)
-with tabs[2]: # Monte Carlo Simulation
+
+with tabs[2]: # Monte Carlo Projection
     st.header("🔮 10,000-Path Probabilistic Engine")
-    mc_target = st.selectbox("Select Asset for Path Simulation", df_engine['Asset'].unique())
+    mc_target = st.selectbox("Select Asset for Simulation", df_engine['Asset'].unique())
     mc_row = df_engine[df_engine['Asset'] == mc_target].iloc[0]
     
     mu, sigma, s0 = mc_row['Returns'].mean(), mc_row['Returns'].std(), mc_row['Price']*fx_rate
-    paths, days = 50, 252 # Reduced paths for speed
+    paths, days = 50, 252 
     dt = 1/days
     stoch_matrix = np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * np.random.standard_normal((days, paths)))
     price_paths = s0 * stoch_matrix.cumprod(axis=0)
@@ -171,18 +153,18 @@ with tabs[2]: # Monte Carlo Simulation
     fig_mc = go.Figure()
     for i in range(paths):
         fig_mc.add_trace(go.Scatter(y=price_paths[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
-    fig_mc.update_layout(template="plotly_dark", xaxis_title="Trading Days (Projection)", yaxis_title=f"Projected Price ({sym})")
+    fig_mc.update_layout(template="plotly_dark", xaxis_title="Projection Days", yaxis_title=f"Price ({sym})")
     st.plotly_chart(fig_mc, use_container_width=True)
 
-with tabs[3]: # Growth
-    st.header("📈 Scale & Vision")
-    st.write("Connecting the APEX Engine to institutional risk pools.")
+with tabs[3]: # Scale Vision
+    st.header("📈 Scaling the Vision")
+    st.success("Target Deployment: Asia School of Business Cluster (June 2026)")
     with st.form("waitlist"):
         email = st.text_input("Founder Email")
-        region = st.radio("Residency Focus", ["Kuala Lumpur", "Singapore", "Paris"])
+        focus = st.radio("Primary Focus", ["Kuala Lumpur", "Singapore", "Paris"])
         if st.form_submit_button("REGISTER AS FOUNDER"):
-            st.success(f"Access granted for {region} cluster. Welcome, {email}.")
+            st.info(f"Vision locked for {focus}. Welcome, {email}.")
 
 # --- FOOTER ---
 st.markdown("---")
-st.caption(f"© 2026 LIVE FOR THE PEOPLE | ASIA SCHOOL OF BUSINESS | APEX ENGINE v22.5")
+st.caption(f"© 2026 LIVE FOR THE PEOPLE | APEX ENGINE v22.5 | ASB MALAYSIA")
