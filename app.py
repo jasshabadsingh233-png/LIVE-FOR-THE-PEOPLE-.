@@ -121,16 +121,42 @@ with tabs[1]: # The Safety Floor (Option B) Engine
     c3.metric("Protection Status", "ACTIVE", delta="Shielded")
 
     # Interactive Chart with Safety Floor
-    hist_df = shield_row['History'].copy().reset_index()
-    hist_df['Price_Local'] = hist_df['Close'] * fx_rate
-    hist_df['Floor'] = hist_df['Price_Local'] - (vol_buffer)
+    with tabs[1]: # The Safety Floor (Option B) Engine
+    st.header("🛡️ Option B: Safety Floor Telemetry")
     
-    fig_shield = px.line(hist_df, x='Date', y=['Price_Local', 'Floor'], 
-                         title=f"{target_shield} Price vs. Safety Shield",
-                         color_discrete_map={"Price_Local": "#00ffc8", "Floor": "#ff4b4b"})
-    fig_shield.update_layout(template="plotly_dark", hovermode="x unified")
-    st.plotly_chart(fig_shield, use_container_width=True)
+    if p_df.empty:
+        st.error("Engine Node Offline: No portfolio data available to shield.")
+    else:
+        target_shield = st.selectbox("Select Asset to Inspect Shield", p_df['Asset'].unique())
+        shield_row = p_df[p_df['Asset'] == target_shield].iloc[0]
+        
+        # --- THE FIX: Check if 'Vol' exists and is not Null ---
+        if pd.isna(shield_row.get('Vol')) or shield_row.get('Vol') == 0:
+            st.warning(f"Insufficient historical data to calculate Volatility Shield for {target_shield}.")
+        else:
+            current_p = shield_row['Price']
+            vol_buffer = (shield_row['Vol'] / 10) * current_p * atr_multiplier
+            safety_floor = current_p - vol_buffer
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Current Price", f"{sym}{current_p:,.2f}")
+            c2.metric("Safety Floor", f"{sym}{safety_floor:,.2f}", delta=f"-{sym}{vol_buffer:,.2f} Buffer", delta_color="inverse")
+            c3.metric("Protection Status", "ACTIVE", delta="Shielded")
 
+            # Interactive Chart with Safety Floor
+            hist_df = shield_row['History'].copy().reset_index()
+            # Ensure column names are flat
+            if isinstance(hist_df.columns, pd.MultiIndex):
+                hist_df.columns = hist_df.columns.get_level_values(0)
+            
+            hist_df['Price_Local'] = hist_df['Close'] * fx_rate
+            hist_df['Floor'] = hist_df['Price_Local'] - (vol_buffer)
+            
+            fig_shield = px.line(hist_df, x='Date', y=['Price_Local', 'Floor'], 
+                                 title=f"{target_shield} Price vs. Safety Shield",
+                                 color_discrete_map={"Price_Local": "#00ffc8", "Floor": "#ff4b4b"})
+            fig_shield.update_layout(template="plotly_dark", hovermode="x unified")
+            st.plotly_chart(fig_shield, use_container_width=True)
 with tabs[2]: # Monte Carlo Simulation
     st.header("🔮 10,000-Path Probabilistic Engine")
     mc_target = st.selectbox("Select Asset for Path Simulation", df_engine['Asset'].unique())
